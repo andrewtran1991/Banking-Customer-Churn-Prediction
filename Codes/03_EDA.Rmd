@@ -1,0 +1,149 @@
+---
+title: "EDA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the data
+
+```{r}
+dat <- read_csv("../data/processed/mbr_all_final.csv")
+dat <- as.data.frame(dat)
+```
+
+## Data Overiview
+
+```{r}
+# Convert some columns to factors
+cols_factor = c("rim_status_closed", "type", "missing_payment")
+dat[cols_factor] <- lapply(dat[cols_factor], as.factor) 
+glimpse(dat)
+```
+
+```{r}
+summary(dat)
+```
+1. rim_status_closed: whether the customer has churned (closed the bank membership), 1 indicates churn.
+2. age: member age
+3. type: membership type
+4. moving_time: how many time a member has moved to a different zipcode
+5. rim_duration: membership time
+6. member_id: member id
+7. rim_closed_dt: membership closed date
+8. total_acct: total account a member has
+9-17. CK-VISAS: total (type of account) a member has
+18. mrm: member relationship score: 1= low - 4= high
+19. trm: term (in months) tied to the account
+20. cur_bal: current all accounts balance per member
+21. orig_amt:  opening all accounts balance per member
+22. orig_rate: average original rate of all accounts per member
+23. acc_duration: average account duration of all accounts per member
+24. online_duration: how long a member had and used the online banking
+25. missing_payments: whether a member missed a payment (on loans)
+26. avg_bal: average balance across all accounts per member
+27. avg_rate: average rate across all accounts per member
+28. total_amt: total aggregated transaction amount
+29. total_ct: total count of transactions
+30. avail_bal: total available balance to borrow
+31. branch_rating: response to "Please rate the service you received at the XX branch today" on scale= 1 (poor) to 5 (excellent)
+32. member_rating: response to "Please rate your new account opening experience" on scale= 1 (poor) to 5 (excellent)
+33. contract_rating: response to "Please rate your new loan opening experience" scale= 1 (poor) to 5 (excellent)
+34. mortgage_rating: response to "Please rate your home loan experience" scale= 1 (poor) to 5 (excellent)
+35. email_rating: response to "Please rate your email experience" scale= 1 (poor) to 5 (excellent)
+
+## Response variable
+rim_status_closed = 0: non-churned customer
+rim_status_closed = 1: churned customer
+
+```{r}
+ggplot(dat, aes(rim_status_closed, fill = rim_status_closed)) +
+  geom_bar() +
+  theme(legend.position = 'none')
+
+table(dat$rim_status_closed)
+round(prop.table(table(dat$rim_status_closed)),3)
+```
+
+Majority of the customers did not churn; only 12% churned.
+
+## Feature variables
+### Continuous Variable Distribution
+
+```{r}
+dat_graph <- dat %>%
+  keep(is.numeric) %>%
+  gather() 
+  
+```
+
+```{r}
+dat_graph %>% ggplot() +
+  geom_histogram(mapping = aes(x=value,fill=key), color="black") +
+  facet_wrap(~ key, scales = "free") +
+  theme_minimal() +
+  theme(legend.position = 'none')
+```
+### Correlation Matrix
+```{r}
+numericVarName <- names(which(sapply(dat, is.numeric)))
+corr <- cor(dat[,numericVarName], use = 'pairwise.complete.obs')
+ggcorrplot(corr)
+```
+
+#### Age distribution
+
+```{r}
+age_hist <- ggplot(dat, aes(x = age, fill = rim_status_closed)) +
+  geom_histogram(binwidth = 5) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0,100,by=10), labels = comma)
+
+age_boxplot <- ggplot(dat, aes(x = rim_status_closed, y = age, fill = rim_status_closed)) +
+  geom_boxplot() + 
+  theme_minimal() +
+  theme(legend.position = 'none')
+
+age_hist | age_boxplot
+
+```
+
+#### Membership time distribution
+
+```{r}
+rim_duration_hist <- ggplot(dat, aes(x = rim_duration, fill = rim_status_closed)) +
+  geom_histogram() +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0,20000,by=1000), labels = comma) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) 
+
+rim_duration_boxplot <- ggplot(dat, aes(x = rim_status_closed, y = rim_duration, fill = rim_status_closed)) +
+  geom_boxplot() + 
+  theme_minimal() +
+  theme(legend.position = 'none')
+
+rim_duration_hist  
+rim_duration_boxplot
+
+```
+
+### Categorical Variable Distribution
+
+```{r}
+dat %>%
+  dplyr::select(-rim_status_closed) %>% 
+  keep(is.factor) %>%
+  gather() %>%
+  group_by(key, value) %>% 
+  summarize(n = n()) %>% 
+  ggplot() +
+  geom_bar(mapping=aes(x = value, y = n, fill=key), color="black", stat='identity') + 
+  coord_flip() +
+  facet_wrap(~ key, scales = "free") +
+  theme_minimal() +
+  theme(legend.position = 'none')
+```
+
+end
